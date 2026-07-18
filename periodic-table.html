@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>جدول تناوبی تعاملی عناصر</title>
+<style>
+  :root{
+    --bg:#0a1220; --panel:#101d33; --panel2:#152540;
+    --accent:#63e6be; --accent2:#7c9cff;
+    --text:#e8edf7; --muted:#8ea3c7; --border:#22355a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:Tahoma,"Vazirmatn",sans-serif;
+    background:
+      radial-gradient(circle at top right, rgba(99,230,190,0.08), transparent 40%),
+      radial-gradient(circle at bottom left, rgba(124,156,255,0.08), transparent 40%),
+      var(--bg);
+    color:var(--text); min-height:100vh; padding:14px;
+  }
+  h1{font-size:20px; margin:4px 0 10px 0; color:var(--accent); text-align:center;}
+  h2{font-size:15px; color:var(--accent2); margin:0 0 10px 0; border-right:3px solid var(--accent2); padding-right:8px;}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding:14px; margin-bottom:16px; box-shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  .table-wrap{overflow-x:auto; padding-bottom:8px;}
+  #ptable{
+    display:grid;
+    grid-template-columns:repeat(18, 40px);
+    grid-template-rows:repeat(10, 40px);
+    gap:3px;
+    width:max-content;
+    margin:0 auto;
+  }
+  .cell{
+    grid-row: var(--r); grid-column: var(--c);
+    border-radius:6px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    cursor:pointer; font-size:9px; color:#08121f; font-weight:bold; line-height:1.1;
+    transition:transform .12s ease; position:relative; user-select:none;
+  }
+  .cell:hover{ transform:scale(1.15); z-index:5; box-shadow:0 4px 14px rgba(0,0,0,.5);}
+  .cell .num{position:absolute; top:2px; right:3px; font-size:6.5px; font-weight:normal;}
+  .cell .sym{font-size:13px;}
+  .spacer-row{ grid-row:8; grid-column:1/19; height:6px;}
+  .legend{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; font-size:11px;}
+  .legend span{display:flex; align-items:center; gap:5px;}
+  .legend .box{width:12px; height:12px; border-radius:3px; display:inline-block;}
+  #detail{ min-height:70px; }
+  .detail-empty{color:var(--muted); font-size:13px;}
+  .detail-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13.5px; margin-top:8px;}
+  .detail-grid div{background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:8px 10px;}
+  .detail-grid b{color:var(--accent);}
+  .big-symbol{font-size:40px; font-weight:bold;}
+  .rx-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  select{
+    background:var(--panel2); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:10px 12px; font-size:14px; font-family:Tahoma,sans-serif; flex:1; min-width:140px;
+  }
+  button{
+    border:none; border-radius:10px; padding:11px 18px; font-size:14px; font-weight:bold;
+    cursor:pointer; background:linear-gradient(90deg, var(--accent), var(--accent2)); color:#08121f;
+  }
+  #rxResult{ margin-top:14px; }
+  .rx-box{ background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:14px; }
+  .rx-eq{ font-family:monospace; font-size:16px; color:var(--accent); direction:ltr; text-align:center; margin-bottom:8px;}
+  .rx-product{font-size:14px; margin-bottom:4px;}
+  .rx-desc{font-size:12.5px; color:var(--muted); line-height:1.8;}
+  .rx-note{ font-size:12px; color:var(--muted); margin-top:10px; line-height:1.8; }
+</style>
+</head>
+<body>
+
+<h1>جدول تناوبی تعاملی عناصر</h1>
+
+<div class="card">
+  <h2>روی هر عنصر کلیک کن تا اطلاعاتش رو ببینی</h2>
+  <div class="table-wrap">
+    <div id="ptable"></div>
+  </div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<div class="card">
+  <h2>جزئیات عنصر انتخاب‌شده</h2>
+  <div id="detail"><p class="detail-empty">یک عنصر از جدول بالا انتخاب کن...</p></div>
+</div>
+
+<div class="card">
+  <h2>ترکیب دو عنصر — پیش‌بینی واکنش</h2>
+  <p style="font-size:12px; color:var(--muted); line-height:1.8;">
+    این بخش یه پایگاه‌داده‌ی دستچین‌شده از واکنش‌های معروف شیمیایی بین عناصره (نه یه موتور پیش‌بینی شیمیایی کامل). اگه ترکیبی توی پایگاه‌داده نباشه، صادقانه بهت می‌گه.
+  </p>
+  <div class="rx-row" style="margin-top:10px;">
+    <select id="el1"></select>
+    <span style="color:var(--accent2); font-weight:bold;">+</span>
+    <select id="el2"></select>
+    <button onclick="predictReaction()">نمایش واکنش</button>
+  </div>
+  <div id="rxResult"></div>
+</div>
+
+<script>
+const ELEMENTS = [{"number": 1, "symbol": "H", "name_en": "Hydrogen", "name_fa": "هیدروژن", "mass": 1.008, "category": "nonmetal", "phase": "gas", "row": 1, "col": 1}, {"number": 2, "symbol": "He", "name_en": "Helium", "name_fa": "هلیوم", "mass": 4.0026, "category": "noble", "phase": "gas", "row": 1, "col": 18}, {"number": 3, "symbol": "Li", "name_en": "Lithium", "name_fa": "لیتیم", "mass": 6.94, "category": "alkali", "phase": "solid", "row": 2, "col": 1}, {"number": 4, "symbol": "Be", "name_en": "Beryllium", "name_fa": "بریلیم", "mass": 9.0122, "category": "alkaline", "phase": "solid", "row": 2, "col": 2}, {"number": 5, "symbol": "B", "name_en": "Boron", "name_fa": "بور", "mass": 10.81, "category": "metalloid", "phase": "solid", "row": 2, "col": 13}, {"number": 6, "symbol": "C", "name_en": "Carbon", "name_fa": "کربن", "mass": 12.011, "category": "nonmetal", "phase": "solid", "row": 2, "col": 14}, {"number": 7, "symbol": "N", "name_en": "Nitrogen", "name_fa": "نیتروژن", "mass": 14.007, "category": "nonmetal", "phase": "gas", "row": 2, "col": 15}, {"number": 8, "symbol": "O", "name_en": "Oxygen", "name_fa": "اکسیژن", "mass": 15.999, "category": "nonmetal", "phase": "gas", "row": 2, "col": 16}, {"number": 9, "symbol": "F", "name_en": "Fluorine", "name_fa": "فلوئور", "mass": 18.998, "category": "halogen", "phase": "gas", "row": 2, "col": 17}, {"number": 10, "symbol": "Ne", "name_en": "Neon", "name_fa": "نئون", "mass": 20.18, "category": "noble", "phase": "gas", "row": 2, "col": 18}, {"number": 11, "symbol": "Na", "name_en": "Sodium", "name_fa": "سدیم", "mass": 22.99, "category": "alkali", "phase": "solid", "row": 3, "col": 1}, {"number": 12, "symbol": "Mg", "name_en": "Magnesium", "name_fa": "منیزیم", "mass": 24.305, "category": "alkaline", "phase": "solid", "row": 3, "col": 2}, {"number": 13, "symbol": "Al", "name_en": "Aluminium", "name_fa": "آلومینیوم", "mass": 26.982, "category": "posttransition", "phase": "solid", "row": 3, "col": 13}, {"number": 14, "symbol": "Si", "name_en": "Silicon", "name_fa": "سیلیسیم", "mass": 28.085, "category": "metalloid", "phase": "solid", "row": 3, "col": 14}, {"number": 15, "symbol": "P", "name_en": "Phosphorus", "name_fa": "فسفر", "mass": 30.974, "category": "nonmetal", "phase": "solid", "row": 3, "col": 15}, {"number": 16, "symbol": "S", "name_en": "Sulfur", "name_fa": "گوگرد", "mass": 32.06, "category": "nonmetal", "phase": "solid", "row": 3, "col": 16}, {"number": 17, "symbol": "Cl", "name_en": "Chlorine", "name_fa": "کلر", "mass": 35.45, "category": "halogen", "phase": "gas", "row": 3, "col": 17}, {"number": 18, "symbol": "Ar", "name_en": "Argon", "name_fa": "آرگون", "mass": 39.948, "category": "noble", "phase": "gas", "row": 3, "col": 18}, {"number": 19, "symbol": "K", "name_en": "Potassium", "name_fa": "پتاسیم", "mass": 39.098, "category": "alkali", "phase": "solid", "row": 4, "col": 1}, {"number": 20, "symbol": "Ca", "name_en": "Calcium", "name_fa": "کلسیم", "mass": 40.078, "category": "alkaline", "phase": "solid", "row": 4, "col": 2}, {"number": 21, "symbol": "Sc", "name_en": "Scandium", "name_fa": "اسکاندیم", "mass": 44.956, "category": "transition", "phase": "solid", "row": 4, "col": 3}, {"number": 22, "symbol": "Ti", "name_en": "Titanium", "name_fa": "تیتانیوم", "mass": 47.867, "category": "transition", "phase": "solid", "row": 4, "col": 4}, {"number": 23, "symbol": "V", "name_en": "Vanadium", "name_fa": "وانادیم", "mass": 50.942, "category": "transition", "phase": "solid", "row": 4, "col": 5}, {"number": 24, "symbol": "Cr", "name_en": "Chromium", "name_fa": "کروم", "mass": 51.996, "category": "transition", "phase": "solid", "row": 4, "col": 6}, {"number": 25, "symbol": "Mn", "name_en": "Manganese", "name_fa": "منگنز", "mass": 54.938, "category": "transition", "phase": "solid", "row": 4, "col": 7}, {"number": 26, "symbol": "Fe", "name_en": "Iron", "name_fa": "آهن", "mass": 55.845, "category": "transition", "phase": "solid", "row": 4, "col": 8}, {"number": 27, "symbol": "Co", "name_en": "Cobalt", "name_fa": "کبالت", "mass": 58.933, "category": "transition", "phase": "solid", "row": 4, "col": 9}, {"number": 28, "symbol": "Ni", "name_en": "Nickel", "name_fa": "نیکل", "mass": 58.693, "category": "transition", "phase": "solid", "row": 4, "col": 10}, {"number": 29, "symbol": "Cu", "name_en": "Copper", "name_fa": "مس", "mass": 63.546, "category": "transition", "phase": "solid", "row": 4, "col": 11}, {"number": 30, "symbol": "Zn", "name_en": "Zinc", "name_fa": "روی", "mass": 65.38, "category": "transition", "phase": "solid", "row": 4, "col": 12}, {"number": 31, "symbol": "Ga", "name_en": "Gallium", "name_fa": "گالیم", "mass": 69.723, "category": "posttransition", "phase": "solid", "row": 4, "col": 13}, {"number": 32, "symbol": "Ge", "name_en": "Germanium", "name_fa": "ژرمانیوم", "mass": 72.63, "category": "metalloid", "phase": "solid", "row": 4, "col": 14}, {"number": 33, "symbol": "As", "name_en": "Arsenic", "name_fa": "آرسنیک", "mass": 74.922, "category": "metalloid", "phase": "solid", "row": 4, "col": 15}, {"number": 34, "symbol": "Se", "name_en": "Selenium", "name_fa": "سلنیوم", "mass": 78.971, "category": "nonmetal", "phase": "solid", "row": 4, "col": 16}, {"number": 35, "symbol": "Br", "name_en": "Bromine", "name_fa": "برم", "mass": 79.904, "category": "halogen", "phase": "liquid", "row": 4, "col": 17}, {"number": 36, "symbol": "Kr", "name_en": "Krypton", "name_fa": "کریپتون", "mass": 83.798, "category": "noble", "phase": "gas", "row": 4, "col": 18}, {"number": 37, "symbol": "Rb", "name_en": "Rubidium", "name_fa": "روبیدیم", "mass": 85.468, "category": "alkali", "phase": "solid", "row": 5, "col": 1}, {"number": 38, "symbol": "Sr", "name_en": "Strontium", "name_fa": "استرانسیم", "mass": 87.62, "category": "alkaline", "phase": "solid", "row": 5, "col": 2}, {"number": 39, "symbol": "Y", "name_en": "Yttrium", "name_fa": "ایتریم", "mass": 88.906, "category": "transition", "phase": "solid", "row": 5, "col": 3}, {"number": 40, "symbol": "Zr", "name_en": "Zirconium", "name_fa": "زیرکونیوم", "mass": 91.224, "category": "transition", "phase": "solid", "row": 5, "col": 4}, {"number": 41, "symbol": "Nb", "name_en": "Niobium", "name_fa": "نیوبیم", "mass": 92.906, "category": "transition", "phase": "solid", "row": 5, "col": 5}, {"number": 42, "symbol": "Mo", "name_en": "Molybdenum", "name_fa": "مولیبدن", "mass": 95.95, "category": "transition", "phase": "solid", "row": 5, "col": 6}, {"number": 43, "symbol": "Tc", "name_en": "Technetium", "name_fa": "تکنسیم", "mass": 98.0, "category": "transition", "phase": "solid", "row": 5, "col": 7}, {"number": 44, "symbol": "Ru", "name_en": "Ruthenium", "name_fa": "روتنیم", "mass": 101.07, "category": "transition", "phase": "solid", "row": 5, "col": 8}, {"number": 45, "symbol": "Rh", "name_en": "Rhodium", "name_fa": "رودیم", "mass": 102.91, "category": "transition", "phase": "solid", "row": 5, "col": 9}, {"number": 46, "symbol": "Pd", "name_en": "Palladium", "name_fa": "پالادیم", "mass": 106.42, "category": "transition", "phase": "solid", "row": 5, "col": 10}, {"number": 47, "symbol": "Ag", "name_en": "Silver", "name_fa": "نقره", "mass": 107.87, "category": "transition", "phase": "solid", "row": 5, "col": 11}, {"number": 48, "symbol": "Cd", "name_en": "Cadmium", "name_fa": "کادمیوم", "mass": 112.41, "category": "transition", "phase": "solid", "row": 5, "col": 12}, {"number": 49, "symbol": "In", "name_en": "Indium", "name_fa": "ایندیم", "mass": 114.82, "category": "posttransition", "phase": "solid", "row": 5, "col": 13}, {"number": 50, "symbol": "Sn", "name_en": "Tin", "name_fa": "قلع", "mass": 118.71, "category": "posttransition", "phase": "solid", "row": 5, "col": 14}, {"number": 51, "symbol": "Sb", "name_en": "Antimony", "name_fa": "آنتیموان", "mass": 121.76, "category": "metalloid", "phase": "solid", "row": 5, "col": 15}, {"number": 52, "symbol": "Te", "name_en": "Tellurium", "name_fa": "تلوریم", "mass": 127.6, "category": "metalloid", "phase": "solid", "row": 5, "col": 16}, {"number": 53, "symbol": "I", "name_en": "Iodine", "name_fa": "ید", "mass": 126.9, "category": "halogen", "phase": "solid", "row": 5, "col": 17}, {"number": 54, "symbol": "Xe", "name_en": "Xenon", "name_fa": "زنون", "mass": 131.29, "category": "noble", "phase": "gas", "row": 5, "col": 18}, {"number": 55, "symbol": "Cs", "name_en": "Cesium", "name_fa": "سزیم", "mass": 132.91, "category": "alkali", "phase": "solid", "row": 6, "col": 1}, {"number": 56, "symbol": "Ba", "name_en": "Barium", "name_fa": "باریم", "mass": 137.33, "category": "alkaline", "phase": "solid", "row": 6, "col": 2}, {"number": 57, "symbol": "La", "name_en": "Lanthanum", "name_fa": "لانتانیم", "mass": 138.91, "category": "lanthanide", "phase": "solid", "row": 9, "col": 3}, {"number": 58, "symbol": "Ce", "name_en": "Cerium", "name_fa": "سریم", "mass": 140.12, "category": "lanthanide", "phase": "solid", "row": 9, "col": 4}, {"number": 59, "symbol": "Pr", "name_en": "Praseodymium", "name_fa": "پرازئودیمیم", "mass": 140.91, "category": "lanthanide", "phase": "solid", "row": 9, "col": 5}, {"number": 60, "symbol": "Nd", "name_en": "Neodymium", "name_fa": "نئودیمیم", "mass": 144.24, "category": "lanthanide", "phase": "solid", "row": 9, "col": 6}, {"number": 61, "symbol": "Pm", "name_en": "Promethium", "name_fa": "پرومتیم", "mass": 145.0, "category": "lanthanide", "phase": "solid", "row": 9, "col": 7}, {"number": 62, "symbol": "Sm", "name_en": "Samarium", "name_fa": "ساماریم", "mass": 150.36, "category": "lanthanide", "phase": "solid", "row": 9, "col": 8}, {"number": 63, "symbol": "Eu", "name_en": "Europium", "name_fa": "یوروپیم", "mass": 151.96, "category": "lanthanide", "phase": "solid", "row": 9, "col": 9}, {"number": 64, "symbol": "Gd", "name_en": "Gadolinium", "name_fa": "گادولینیم", "mass": 157.25, "category": "lanthanide", "phase": "solid", "row": 9, "col": 10}, {"number": 65, "symbol": "Tb", "name_en": "Terbium", "name_fa": "تربیم", "mass": 158.93, "category": "lanthanide", "phase": "solid", "row": 9, "col": 11}, {"number": 66, "symbol": "Dy", "name_en": "Dysprosium", "name_fa": "دیسپروزیم", "mass": 162.5, "category": "lanthanide", "phase": "solid", "row": 9, "col": 12}, {"number": 67, "symbol": "Ho", "name_en": "Holmium", "name_fa": "هولمیم", "mass": 164.93, "category": "lanthanide", "phase": "solid", "row": 9, "col": 13}, {"number": 68, "symbol": "Er", "name_en": "Erbium", "name_fa": "اربیم", "mass": 167.26, "category": "lanthanide", "phase": "solid", "row": 9, "col": 14}, {"number": 69, "symbol": "Tm", "name_en": "Thulium", "name_fa": "تولیم", "mass": 168.93, "category": "lanthanide", "phase": "solid", "row": 9, "col": 15}, {"number": 70, "symbol": "Yb", "name_en": "Ytterbium", "name_fa": "ایتربیم", "mass": 173.05, "category": "lanthanide", "phase": "solid", "row": 9, "col": 16}, {"number": 71, "symbol": "Lu", "name_en": "Lutetium", "name_fa": "لوتیم", "mass": 174.97, "category": "lanthanide", "phase": "solid", "row": 9, "col": 17}, {"number": 72, "symbol": "Hf", "name_en": "Hafnium", "name_fa": "هافنیم", "mass": 178.49, "category": "transition", "phase": "solid", "row": 6, "col": 4}, {"number": 73, "symbol": "Ta", "name_en": "Tantalum", "name_fa": "تانتالیم", "mass": 180.95, "category": "transition", "phase": "solid", "row": 6, "col": 5}, {"number": 74, "symbol": "W", "name_en": "Tungsten", "name_fa": "تنگستن", "mass": 183.84, "category": "transition", "phase": "solid", "row": 6, "col": 6}, {"number": 75, "symbol": "Re", "name_en": "Rhenium", "name_fa": "رنیم", "mass": 186.21, "category": "transition", "phase": "solid", "row": 6, "col": 7}, {"number": 76, "symbol": "Os", "name_en": "Osmium", "name_fa": "اسمیم", "mass": 190.23, "category": "transition", "phase": "solid", "row": 6, "col": 8}, {"number": 77, "symbol": "Ir", "name_en": "Iridium", "name_fa": "ایریدیم", "mass": 192.22, "category": "transition", "phase": "solid", "row": 6, "col": 9}, {"number": 78, "symbol": "Pt", "name_en": "Platinum", "name_fa": "پلاتین", "mass": 195.08, "category": "transition", "phase": "solid", "row": 6, "col": 10}, {"number": 79, "symbol": "Au", "name_en": "Gold", "name_fa": "طلا", "mass": 196.97, "category": "transition", "phase": "solid", "row": 6, "col": 11}, {"number": 80, "symbol": "Hg", "name_en": "Mercury", "name_fa": "جیوه", "mass": 200.59, "category": "transition", "phase": "liquid", "row": 6, "col": 12}, {"number": 81, "symbol": "Tl", "name_en": "Thallium", "name_fa": "تالیم", "mass": 204.38, "category": "posttransition", "phase": "solid", "row": 6, "col": 13}, {"number": 82, "symbol": "Pb", "name_en": "Lead", "name_fa": "سرب", "mass": 207.2, "category": "posttransition", "phase": "solid", "row": 6, "col": 14}, {"number": 83, "symbol": "Bi", "name_en": "Bismuth", "name_fa": "بیسموت", "mass": 208.98, "category": "posttransition", "phase": "solid", "row": 6, "col": 15}, {"number": 84, "symbol": "Po", "name_en": "Polonium", "name_fa": "پولونیم", "mass": 209.0, "category": "posttransition", "phase": "solid", "row": 6, "col": 16}, {"number": 85, "symbol": "At", "name_en": "Astatine", "name_fa": "استاتین", "mass": 210.0, "category": "halogen", "phase": "solid", "row": 6, "col": 17}, {"number": 86, "symbol": "Rn", "name_en": "Radon", "name_fa": "رادون", "mass": 222.0, "category": "noble", "phase": "gas", "row": 6, "col": 18}, {"number": 87, "symbol": "Fr", "name_en": "Francium", "name_fa": "فرانسیم", "mass": 223.0, "category": "alkali", "phase": "solid", "row": 7, "col": 1}, {"number": 88, "symbol": "Ra", "name_en": "Radium", "name_fa": "رادیم", "mass": 226.0, "category": "alkaline", "phase": "solid", "row": 7, "col": 2}, {"number": 89, "symbol": "Ac", "name_en": "Actinium", "name_fa": "اکتینیم", "mass": 227.0, "category": "actinide", "phase": "solid", "row": 10, "col": 3}, {"number": 90, "symbol": "Th", "name_en": "Thorium", "name_fa": "توریم", "mass": 232.04, "category": "actinide", "phase": "solid", "row": 10, "col": 4}, {"number": 91, "symbol": "Pa", "name_en": "Protactinium", "name_fa": "پروتاکتینیم", "mass": 231.04, "category": "actinide", "phase": "solid", "row": 10, "col": 5}, {"number": 92, "symbol": "U", "name_en": "Uranium", "name_fa": "اورانیم", "mass": 238.03, "category": "actinide", "phase": "solid", "row": 10, "col": 6}, {"number": 93, "symbol": "Np", "name_en": "Neptunium", "name_fa": "نپتونیم", "mass": 237.0, "category": "actinide", "phase": "solid", "row": 10, "col": 7}, {"number": 94, "symbol": "Pu", "name_en": "Plutonium", "name_fa": "پلوتونیم", "mass": 244.0, "category": "actinide", "phase": "solid", "row": 10, "col": 8}, {"number": 95, "symbol": "Am", "name_en": "Americium", "name_fa": "آمریسیم", "mass": 243.0, "category": "actinide", "phase": "solid", "row": 10, "col": 9}, {"number": 96, "symbol": "Cm", "name_en": "Curium", "name_fa": "کوریم", "mass": 247.0, "category": "actinide", "phase": "solid", "row": 10, "col": 10}, {"number": 97, "symbol": "Bk", "name_en": "Berkelium", "name_fa": "برکلیم", "mass": 247.0, "category": "actinide", "phase": "solid", "row": 10, "col": 11}, {"number": 98, "symbol": "Cf", "name_en": "Californium", "name_fa": "کالیفرنیم", "mass": 251.0, "category": "actinide", "phase": "solid", "row": 10, "col": 12}, {"number": 99, "symbol": "Es", "name_en": "Einsteinium", "name_fa": "اینشتینیم", "mass": 252.0, "category": "actinide", "phase": "solid", "row": 10, "col": 13}, {"number": 100, "symbol": "Fm", "name_en": "Fermium", "name_fa": "فرمیم", "mass": 257.0, "category": "actinide", "phase": "solid", "row": 10, "col": 14}, {"number": 101, "symbol": "Md", "name_en": "Mendelevium", "name_fa": "مندلویم", "mass": 258.0, "category": "actinide", "phase": "solid", "row": 10, "col": 15}, {"number": 102, "symbol": "No", "name_en": "Nobelium", "name_fa": "نوبلیم", "mass": 259.0, "category": "actinide", "phase": "solid", "row": 10, "col": 16}, {"number": 103, "symbol": "Lr", "name_en": "Lawrencium", "name_fa": "لارنسیم", "mass": 266.0, "category": "actinide", "phase": "solid", "row": 10, "col": 17}, {"number": 104, "symbol": "Rf", "name_en": "Rutherfordium", "name_fa": "رادرفوردیم", "mass": 267.0, "category": "transition", "phase": "solid", "row": 7, "col": 4}, {"number": 105, "symbol": "Db", "name_en": "Dubnium", "name_fa": "دوبنیم", "mass": 268.0, "category": "transition", "phase": "solid", "row": 7, "col": 5}, {"number": 106, "symbol": "Sg", "name_en": "Seaborgium", "name_fa": "سیبورگیم", "mass": 269.0, "category": "transition", "phase": "solid", "row": 7, "col": 6}, {"number": 107, "symbol": "Bh", "name_en": "Bohrium", "name_fa": "بوریم", "mass": 270.0, "category": "transition", "phase": "solid", "row": 7, "col": 7}, {"number": 108, "symbol": "Hs", "name_en": "Hassium", "name_fa": "هاسیم", "mass": 269.0, "category": "transition", "phase": "solid", "row": 7, "col": 8}, {"number": 109, "symbol": "Mt", "name_en": "Meitnerium", "name_fa": "میتنریم", "mass": 278.0, "category": "unknown", "phase": "solid", "row": 7, "col": 9}, {"number": 110, "symbol": "Ds", "name_en": "Darmstadtium", "name_fa": "دارمشتادتیم", "mass": 281.0, "category": "unknown", "phase": "solid", "row": 7, "col": 10}, {"number": 111, "symbol": "Rg", "name_en": "Roentgenium", "name_fa": "رونتگنیم", "mass": 282.0, "category": "unknown", "phase": "solid", "row": 7, "col": 11}, {"number": 112, "symbol": "Cn", "name_en": "Copernicium", "name_fa": "کوپرنیسیم", "mass": 285.0, "category": "unknown", "phase": "solid", "row": 7, "col": 12}, {"number": 113, "symbol": "Nh", "name_en": "Nihonium", "name_fa": "نیهونیم", "mass": 286.0, "category": "unknown", "phase": "solid", "row": 7, "col": 13}, {"number": 114, "symbol": "Fl", "name_en": "Flerovium", "name_fa": "فلروویم", "mass": 289.0, "category": "unknown", "phase": "solid", "row": 7, "col": 14}, {"number": 115, "symbol": "Mc", "name_en": "Moscovium", "name_fa": "موسکوویم", "mass": 290.0, "category": "unknown", "phase": "solid", "row": 7, "col": 15}, {"number": 116, "symbol": "Lv", "name_en": "Livermorium", "name_fa": "لیورموریم", "mass": 293.0, "category": "unknown", "phase": "solid", "row": 7, "col": 16}, {"number": 117, "symbol": "Ts", "name_en": "Tennessine", "name_fa": "تنسین", "mass": 294.0, "category": "halogen", "phase": "solid", "row": 7, "col": 17}, {"number": 118, "symbol": "Og", "name_en": "Oganesson", "name_fa": "اوگانسون", "mass": 294.0, "category": "noble", "phase": "gas", "row": 7, "col": 18}];
+const REACTIONS = {"H-O": {"equation": "2H₂ + O₂ → 2H₂O", "product": "آب", "desc": "یکی از مهم‌ترین واکنش‌های شیمیایی؛ سوختن هیدروژن در حضور اکسیژن."}, "Cl-Na": {"equation": "2Na + Cl₂ → 2NaCl", "product": "نمک خوراکی (کلرید سدیم)", "desc": "واکنشی شدید و گرمازا؛ فلز فعال با هالوژن ترکیب می‌شود."}, "Fe-O": {"equation": "4Fe + 3O₂ → 2Fe₂O₃", "product": "زنگ آهن (اکسید آهن III)", "desc": "همان فرایند زنگ‌زدن آهن در حضور رطوبت و هوا."}, "Mg-O": {"equation": "2Mg + O₂ → 2MgO", "product": "اکسید منیزیم", "desc": "با شعله‌ای بسیار درخشان می‌سوزد؛ در فلاش دوربین‌های قدیمی استفاده می‌شد."}, "C-O": {"equation": "C + O₂ → CO₂", "product": "دی‌اکسید کربن", "desc": "سوختن کامل کربن در حضور اکسیژن کافی."}, "Cl-H": {"equation": "H₂ + Cl₂ → 2HCl", "product": "کلرید هیدروژن (اسید کلریدریک در آب)", "desc": "واکنش انفجاری در حضور نور."}, "Ca-O": {"equation": "2Ca + O₂ → 2CaO", "product": "آهک زنده (اکسید کلسیم)", "desc": "پایه‌ی تولید ملات و سیمان."}, "H-N": {"equation": "N₂ + 3H₂ → 2NH₃", "product": "آمونیاک", "desc": "فرایند هابر-بوش؛ پایه‌ی تولید کودهای شیمیایی."}, "Al-O": {"equation": "4Al + 3O₂ → 2Al₂O₃", "product": "اکسید آلومینیوم", "desc": "لایه‌ی محافظ نازکی که آلومینیوم را در برابر خوردگی بیشتر مقاوم می‌کند."}, "Cu-O": {"equation": "2Cu + O₂ → 2CuO", "product": "اکسید مس (سیاه‌رنگ)", "desc": "لایه‌ی تیره‌ای که روی مس اکسید شده تشکیل می‌شود."}, "O-Zn": {"equation": "2Zn + O₂ → 2ZnO", "product": "اکسید روی", "desc": "ماده‌ای سفیدرنگ، پرکاربرد در کرم‌های ضدآفتاب."}, "Cl-K": {"equation": "2K + Cl₂ → 2KCl", "product": "کلرید پتاسیم", "desc": "واکنشی شدیدتر از سدیم با کلر، به دلیل فعالیت بالاتر پتاسیم."}, "Na-O": {"equation": "4Na + O₂ → 2Na₂O", "product": "اکسید سدیم", "desc": "سدیم در هوا به سرعت اکسید می‌شود."}, "Ag-S": {"equation": "2Ag + S → Ag₂S", "product": "سولفید نقره", "desc": "همان لکه‌های تیره‌ای که روی زیورآلات نقره‌ای ایجاد می‌شود."}, "O-S": {"equation": "S + O₂ → SO₂", "product": "دی‌اکسید گوگرد", "desc": "گازی تندبو؛ از عوامل اصلی باران اسیدی."}, "O-P": {"equation": "4P + 5O₂ → 2P₂O₅", "product": "پنتوکسید دی‌فسفر", "desc": "بسیار جاذب رطوبت؛ در آب اسید فسفریک تشکیل می‌دهد."}, "O-Si": {"equation": "Si + O₂ → SiO₂", "product": "دی‌اکسید سیلیسیم (کوارتز)", "desc": "ماده‌ی اصلی شن و شیشه."}, "Fe-S": {"equation": "Fe + S → FeS", "product": "سولفید آهن", "desc": "نمونه‌ی کلاسیک آزمایشگاهی برای نشان دادن ترکیب شیمیایی."}, "Cu-S": {"equation": "Cu + S → CuS", "product": "سولفید مس", "desc": ""}, "S-Zn": {"equation": "Zn + S → ZnS", "product": "سولفید روی", "desc": "در صفحات درخشان قدیمی (فسفرسانس) کاربرد داشت."}, "Al-Cl": {"equation": "2Al + 3Cl₂ → 2AlCl₃", "product": "کلرید آلومینیوم", "desc": "کاتالیزور رایج در واکنش‌های آلی."}, "Ca-Cl": {"equation": "Ca + Cl₂ → CaCl₂", "product": "کلرید کلسیم", "desc": "به‌عنوان نمک یخ‌زدا در جاده‌ها استفاده می‌شود."}, "Cl-Mg": {"equation": "Mg + Cl₂ → MgCl₂", "product": "کلرید منیزیم", "desc": ""}, "K-O": {"equation": "4K + O₂ → 2K₂O", "product": "اکسید پتاسیم", "desc": ""}, "Ba-O": {"equation": "2Ba + O₂ → 2BaO", "product": "اکسید باریم", "desc": ""}, "Li-O": {"equation": "4Li + O₂ → 2Li₂O", "product": "اکسید لیتیم", "desc": ""}, "H-S": {"equation": "H₂ + S → H₂S", "product": "سولفید هیدروژن", "desc": "گازی با بوی تخم‌مرغ گندیده، بسیار سمی."}, "F-H": {"equation": "H₂ + F₂ → 2HF", "product": "فلوئورید هیدروژن", "desc": "اسیدی بسیار خورنده؛ حتی به شیشه هم حمله می‌کند."}, "Br-H": {"equation": "H₂ + Br₂ → 2HBr", "product": "برمید هیدروژن", "desc": ""}, "H-I": {"equation": "H₂ + I₂ → 2HI", "product": "یدید هیدروژن", "desc": ""}, "O-Pb": {"equation": "2Pb + O₂ → 2PbO", "product": "اکسید سرب", "desc": ""}, "O-Sn": {"equation": "Sn + O₂ → SnO₂", "product": "دی‌اکسید قلع", "desc": ""}, "Ni-O": {"equation": "2Ni + O₂ → 2NiO", "product": "اکسید نیکل", "desc": ""}, "Cr-O": {"equation": "4Cr + 3O₂ → 2Cr₂O₃", "product": "اکسید کروم", "desc": "رنگدانه‌ی سبز معروف در رنگ‌سازی."}, "O-Ti": {"equation": "Ti + O₂ → TiO₂", "product": "دی‌اکسید تیتانیوم", "desc": "رنگدانه‌ی سفید پرکاربردترین رنگدانه‌ی صنعتی جهان."}, "B-O": {"equation": "4B + 3O₂ → 2B₂O₃", "product": "اکسید بور", "desc": ""}};
+const CATEGORY_FA = {"alkali": "فلز قلیایی", "alkaline": "فلز قلیایی خاکی", "transition": "فلز واسطه", "lanthanide": "لانتانید", "actinide": "اکتینید", "posttransition": "فلز پس‌واسطه", "metalloid": "شبه‌فلز", "nonmetal": "نافلز", "halogen": "هالوژن", "noble": "گاز نجیب", "unknown": "نامشخص (فوق‌سنگین)"};
+const CATEGORY_COLOR = {"alkali": "#ff8a65", "alkaline": "#ffcc80", "transition": "#90caf9", "lanthanide": "#ce93d8", "actinide": "#f48fb1", "posttransition": "#a5d6a7", "metalloid": "#fff59d", "nonmetal": "#80cbc4", "halogen": "#84e0ef", "noble": "#b39ddb", "unknown": "#b0bec5"};
+const PHASE_FA = {"solid": "جامد", "liquid": "مایع", "gas": "گاز"};
+
+const bySymbol = {};
+ELEMENTS.forEach(e => bySymbol[e.symbol] = e);
+
+function buildTable(){
+  const table = document.getElementById('ptable');
+
+  const placeholders = [
+    {row:6, col:3, label:'57–71'},
+    {row:7, col:3, label:'89–103'},
+  ];
+  placeholders.forEach(p => {
+    const ph = document.createElement('div');
+    ph.className = 'cell';
+    ph.style.setProperty('--r', p.row);
+    ph.style.setProperty('--c', p.col);
+    ph.style.background = '#2a3a5c';
+    ph.style.cursor = 'default';
+    ph.innerHTML = `<span style="font-size:9px;">${p.label}</span>`;
+    table.appendChild(ph);
+  });
+
+  ELEMENTS.forEach(e => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.style.setProperty('--r', e.row);
+    cell.style.setProperty('--c', e.col);
+    cell.style.background = CATEGORY_COLOR[e.category] || '#888';
+    cell.innerHTML = `<span class="num">${e.number}</span><span class="sym">${e.symbol}</span>`;
+    cell.onclick = () => showDetail(e.symbol);
+    table.appendChild(cell);
+  });
+
+  const legend = document.getElementById('legend');
+  Object.keys(CATEGORY_FA).forEach(cat => {
+    const span = document.createElement('span');
+    span.innerHTML = `<span class="box" style="background:${CATEGORY_COLOR[cat]}"></span>${CATEGORY_FA[cat]}`;
+    legend.appendChild(span);
+  });
+}
+
+function showDetail(symbol){
+  const e = bySymbol[symbol];
+  const box = document.getElementById('detail');
+  box.innerHTML = `
+    <div style="display:flex; align-items:center; gap:16px;">
+      <div class="big-symbol" style="color:${CATEGORY_COLOR[e.category]}">${e.symbol}</div>
+      <div>
+        <div style="font-size:16px; font-weight:bold;">${e.name_fa} <span style="color:var(--muted); font-size:12px;">(${e.name_en})</span></div>
+        <div style="font-size:12px; color:var(--muted);">عدد اتمی: ${e.number}</div>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <div><b>جرم اتمی:</b> ${e.mass}</div>
+      <div><b>دسته:</b> ${CATEGORY_FA[e.category]}</div>
+      <div><b>حالت در دمای اتاق:</b> ${PHASE_FA[e.phase]}</div>
+      <div><b>تناوب / گروه (موقعیت):</b> ردیف ${e.row}، ستون ${e.col}</div>
+    </div>
+  `;
+}
+
+function fillSelects(){
+  const s1 = document.getElementById('el1');
+  const s2 = document.getElementById('el2');
+  ELEMENTS.forEach(e => {
+    const opt1 = document.createElement('option');
+    opt1.value = e.symbol; opt1.textContent = `${e.symbol} — ${e.name_fa}`;
+    s1.appendChild(opt1);
+    const opt2 = opt1.cloneNode(true);
+    s2.appendChild(opt2);
+  });
+  s1.value = "H";
+  s2.value = "O";
+}
+
+function predictReaction(){
+  const a = document.getElementById('el1').value;
+  const b = document.getElementById('el2').value;
+  const key = [a,b].sort().join('-');
+  const result = document.getElementById('rxResult');
+  const eA = bySymbol[a], eB = bySymbol[b];
+
+  if(REACTIONS[key]){
+    const r = REACTIONS[key];
+    result.innerHTML = `
+      <div class="rx-box">
+        <div class="rx-eq">${r.equation}</div>
+        <div class="rx-product"><b style="color:var(--accent)">محصول:</b> ${r.product}</div>
+        ${r.desc ? `<div class="rx-desc">${r.desc}</div>` : ''}
+      </div>
+    `;
+    return;
+  }
+
+  if(a === b){
+    const diatomic = ["H","N","O","F","Cl","Br","I"];
+    if(diatomic.includes(a)){
+      result.innerHTML = `<div class="rx-box"><div class="rx-eq">${a} + ${a} → ${a}₂</div><div class="rx-desc">این عنصر به‌صورت طبیعی به شکل مولکول دواتمی (${a}₂) وجود دارد.</div></div>`;
+      return;
+    }
+    result.innerHTML = `<div class="rx-box rx-note">این یک عنصر خالصه، نه ترکیب دو عنصر متفاوت.</div>`;
+    return;
+  }
+
+  if(eA.category === 'noble' || eB.category === 'noble'){
+    result.innerHTML = `<div class="rx-box rx-note">گازهای نجیب (مثل هلیوم، نئون، آرگون، کریپتون) به‌دلیل آرایش الکترونی کامل و پایدار، در شرایط عادی تقریباً هیچ واکنش شیمیایی نمی‌دهند.</div>`;
+    return;
+  }
+
+  const metalCats = ['alkali','alkaline','transition','lanthanide','actinide','posttransition'];
+  if(metalCats.includes(eA.category) && metalCats.includes(eB.category)){
+    result.innerHTML = `<div class="rx-box rx-note">هر دو عنصر فلز هستند. دو فلز معمولاً به‌جای واکنش شیمیایی و تشکیل ترکیب با فرمول ثابت، در هم حل می‌شوند و <b>آلیاژ</b> تشکیل می‌دهند (نه یک ترکیب شیمیایی مشخص).</div>`;
+    return;
+  }
+
+  result.innerHTML = `<div class="rx-box rx-note">واکنش شناخته‌شده‌ای برای ترکیب <b>${a}</b> و <b>${b}</b> در پایگاه‌داده‌ی این ابزار ثبت نشده. این ابزار فقط واکنش‌های معروف و پرکاربرد رو پوشش می‌ده، نه یک پیش‌بینی‌گر شیمیایی کامل — برای بررسی دقیق، منابع شیمی معتبر رو چک کن.</div>`;
+}
+
+buildTable();
+fillSelects();
+</script>
+
+</body>
+</html>
